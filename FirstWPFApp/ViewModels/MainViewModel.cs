@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -15,13 +16,12 @@ namespace FirstWPFApp.ViewModels
     {
         private string _screenVal;
 
-        private string operation;
+        private List<string> _availableOperations = new List<string> {"/", "*", "-", "+"};
+        private DataTable _dataTable = new DataTable();
+        private bool _isLastSignAnOperation;
+        private bool _isResultOnScrean;
 
-        private decimal? firstNumber;
-
-        private decimal? secondNumber;
-
-        private bool isRsultOnScrean = false;
+        
 
         public string ScreenVal
         {
@@ -41,82 +41,63 @@ namespace FirstWPFApp.ViewModels
         public MainViewModel()
         {
             AddNumberCommand = new RelayCommand(AddNumber);
-            AddOperationCommand = new RelayCommand(AddOperation);
+            AddOperationCommand = new RelayCommand(AddOperation, CanAddOperation);
             ClearScreenCommand = new RelayCommand(ClearScreen);
-            GetResultCommand = new RelayCommand(GetResult);
+            GetResultCommand = new RelayCommand(GetResult, CanGetResult);
 
+            _screenVal = "0";
         }
-        
+
+        private bool CanGetResult(object obj) => !_isLastSignAnOperation;
+
+        private bool CanAddOperation(object obj) => !_isLastSignAnOperation;
 
         private void AddNumber(object obj)
         {
-            string num = obj.ToString();
-            ScreenVal += num;
+            var number = (string)obj;
+
+            if (ScreenVal == "0" && number != ",") ScreenVal = string.Empty;
+            else if (number == "," && _availableOperations.Contains(ScreenVal.Substring(ScreenVal.Length - 1))) number = "0,";
+            else if (_isResultOnScrean)
+            {
+                ScreenVal = String.Empty;
+                _isResultOnScrean = false;
+            }
+
+            ScreenVal += number;
+
+            _isLastSignAnOperation = false;
         }
 
         private void AddOperation(object obj)
         {
-            if (!isRsultOnScrean)
-            {
-                operation = obj.ToString();
-                firstNumber = decimal.Parse(ScreenVal);
-                ScreenVal = null;
-            }
-            else
-            {
-                firstNumber = decimal.Parse(ScreenVal);
-                ScreenVal = null;
-                operation = obj.ToString();
-                isRsultOnScrean = true;
-            }
+            var operation = (string)obj;
+
+            ScreenVal += operation;
+
+            _isLastSignAnOperation = true;
+
+            _isResultOnScrean = false;
         }
         private void ClearScreen(object obj)
         {
-            ScreenVal = null;
+            ScreenVal = "0";
+
+            _isLastSignAnOperation = false;
+
+            _isResultOnScrean = false;
         }
 
         private void GetResult(object obj)
         {
-            secondNumber = decimal.Parse(ScreenVal);
-            isRsultOnScrean = true;
+            var result = _dataTable.Compute(ScreenVal.Replace(",", "."), "").ToString();
 
-            switch (operation)
-            {
-                case "*":
-                    ScreenVal = (firstNumber * secondNumber).ToString();
-                    break;
-                case "+":
-                    ScreenVal = (firstNumber + secondNumber).ToString();
-                    break;
-                case "/":
-                    if(secondNumber == 0)
-                    {
-                        ScreenVal = "Error";
-                    }
-                    else
-                    {
-                        ScreenVal = (firstNumber / secondNumber).ToString();
-                    }
-                    break;
-                case "-":
-                    ScreenVal = (firstNumber - secondNumber).ToString();
-                    break;
-            }
+            ScreenVal = result;
+
+            _isResultOnScrean = true;
         }
 
-        private void ClearResult()
-        {
-            if (isRsultOnScrean)
-            {
-                ScreenVal = null;
-                operation = null;
-                firstNumber = null;
-                secondNumber = null;
-
-                isRsultOnScrean = false;
-            }
-
-        }
+        
 
         public event PropertyChangedEventHandler PropertyChanged;
 
